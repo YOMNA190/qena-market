@@ -1,0 +1,438 @@
+// السوق الحضاري الرقمي - قنا الجديدة
+// Database Schema - Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER MODULE ====================
+
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  phone     String?  @unique
+  fullName  String   @map("full_name")
+  role      UserRole @default(CUSTOMER)
+  status    UserStatus @default(ACTIVE)
+  avatar    String?
+  
+  // Relations
+  vendor    Vendor?
+  admin     Admin?
+  addresses Address[]
+  cart      Cart?
+  orders    Order[]
+  reviews   Review[]
+  favorites Favorite[]
+  notifications Notification[]
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("users")
+}
+
+model Vendor {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  shopName    String   @map("shop_name")
+  description String?
+  logo        String?
+  phone       String?
+  whatsapp    String?
+  status      UserStatus @default(PENDING)
+  
+  // Relations
+  shops       Shop[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("vendors")
+}
+
+model Admin {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  permissions Json?    // Store admin permissions as JSON
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("admins")
+}
+
+model Address {
+  id          String  @id @default(uuid())
+  userId      String  @map("user_id")
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  city        String  // قنا الجديدة
+  district    String  // الحي الأول، الحي الثاني، etc.
+  street      String
+  building    String
+  floor       String?
+  apartment   String?
+  phone       String
+  notes       String?
+  isDefault   Boolean @default(false) @map("is_default")
+  
+  // Relations
+  orders      Order[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("addresses")
+}
+
+// ==================== SHOP MODULE ====================
+
+enum ShopStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
+model Shop {
+  id          String   @id @default(uuid())
+  vendorId    String   @map("vendor_id")
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  categoryId  String   @map("category_id")
+  category    Category @relation(fields: [categoryId], references: [id])
+  
+  name        String
+  description String?
+  logo        String?
+  cover       String?
+  phone       String?
+  whatsapp    String?
+  address     String?
+  location    String?  // Google Maps link or coordinates
+  
+  openingTime String?  @map("opening_time")
+  closingTime String?  @map("closing_time")
+  
+  status      ShopStatus @default(PENDING)
+  isFeatured  Boolean @default(false) @map("is_featured")
+  
+  // Relations
+  products    Product[]
+  orders      Order[]
+  offers      Offer[]
+  
+  // Analytics
+  rating      Float   @default(0)
+  reviewCount Int     @default(0) @map("review_count")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("shops")
+}
+
+// ==================== CATALOG MODULE ====================
+
+model Category {
+  id          String   @id @default(uuid())
+  
+  nameAr      String   @map("name_ar")
+  nameEn      String   @map("name_en")
+  description String?
+  icon        String?
+  image       String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  // Relations
+  shops       Shop[]
+  products    Product[]
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  
+  shopId      String   @map("shop_id")
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  categoryId  String   @map("category_id")
+  category    Category @relation(fields: [categoryId], references: [id])
+  
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  salePrice   Decimal? @map("sale_price") @db.Decimal(10, 2)
+  
+  stock       Int      @default(0)
+  unit        String   @default("piece") // piece, kg, gram, liter, etc.
+  
+  isActive    Boolean  @default(true) @map("is_active")
+  isFeatured  Boolean  @default(false) @map("is_featured")
+  
+  // Relations
+  images      ProductImage[]
+  reviews     Review[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  favorites   Favorite[]
+  
+  // Analytics
+  rating      Float    @default(0)
+  reviewCount Int      @default(0) @map("review_count")
+  viewCount   Int      @default(0) @map("view_count")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("products")
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  imageUrl  String  @map("image_url")
+  sortOrder Int     @default(0) @map("sort_order")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@map("product_images")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  rating    Int      // 1-5
+  comment   String?
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([productId, userId])
+  @@map("reviews")
+}
+
+// ==================== ORDER MODULE ====================
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  ONLINE_PAYMENT
+  WALLET
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  items     CartItem[]
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  
+  cartId    String  @map("cart_id")
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  quantity  Int
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  orderNumber   String   @unique @map("order_number")
+  
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id])
+  
+  shopId        String   @map("shop_id")
+  shop          Shop     @relation(fields: [shopId], references: [id])
+  
+  addressId     String   @map("address_id")
+  address       Address  @relation(fields: [addressId], references: [id])
+  
+  status        OrderStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING) @map("payment_status")
+  paymentMethod PaymentMethod @map("payment_method")
+  
+  subtotal      Decimal  @db.Decimal(10, 2)
+  deliveryFee   Decimal  @map("delivery_fee") @db.Decimal(10, 2)
+  discount      Decimal? @db.Decimal(10, 2)
+  total         Decimal  @db.Decimal(10, 2)
+  
+  notes         String?
+  
+  // Relations
+  items         OrderItem[]
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  
+  orderId   String  @map("order_id")
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
+  
+  name      String  // Product name at time of order
+  price     Decimal @db.Decimal(10, 2) // Price at time of order
+  quantity  Int
+  total     Decimal @db.Decimal(10, 2)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@map("order_items")
+}
+
+// ==================== OFFER MODULE ====================
+
+model Offer {
+  id          String   @id @default(uuid())
+  
+  shopId      String   @map("shop_id")
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  discountPercent Int  @map("discount_percent") // 10, 20, 30, etc.
+  
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("offers")
+}
+
+// ==================== NOTIFICATION MODULE ====================
+
+enum NotificationType {
+  ORDER
+  PROMOTION
+  SYSTEM
+  REMINDER
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?    // Additional data (orderId, etc.)
+  
+  isRead    Boolean  @default(false) @map("is_read")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@map("notifications")
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@unique([userId, productId])
+  @@map("favorites")
+}
+
+// ==================== SETTINGS MODULE ====================
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("settings")
+}
