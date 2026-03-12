@@ -132,7 +132,7 @@ process.on('SIGINT', async () => {
 export default app;
 
 // Start server for local development
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
   const startServer = async () => {
     try {
       // Test database connection
