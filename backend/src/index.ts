@@ -33,12 +33,27 @@ app.use(helmet({
 }));
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost:5173',
+    ];
+    
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -101,6 +116,17 @@ app.use((req, res) => {
 
 // Global error handler
 app.use(errorHandler);
+
+// Graceful Prisma disconnection for Vercel
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, closing Prisma connection');
+  await prisma.$disconnect();
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, closing Prisma connection');
+  await prisma.$disconnect();
+});
 
 // For Vercel serverless deployment
 export default app;
