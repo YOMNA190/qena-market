@@ -1,14 +1,14 @@
 {
   "version": 2,
   "name": "qena-market-backend",
-  "buildCommand": "npm run build && npx prisma generate",
+  "buildCommand": "npm run build",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "env": {
     "NODE_ENV": "production"
   },
   "functions": {
-    "src/index.ts": {
+    "api/index.ts": {
       "runtime": "nodejs18.x",
       "memory": 1024,
       "maxDuration": 60
@@ -16,17 +16,12 @@
   },
   "builds": [
     {
-      "src": "src/index.ts",
+      "src": "api/index.ts",
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
           "dist/**",
-          "prisma/**",
-          "node_modules/**"
-        ],
-        "excludeFiles": [
-          "node_modules/.prisma/client/libquery_engine-*",
-          "node_modules/.prisma/client/schema.prisma"
+          "prisma/**"
         ]
       }
     }
@@ -34,13 +29,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "src/index.ts"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/src/index.ts"
+      "dest": "api/index.ts"
     }
   ]
 }
