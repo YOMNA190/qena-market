@@ -8,8 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "vercel-build": "npm run build && cd backend && npm install && npx prisma generate",
+    "build": "tsc -b && vite build && cd backend && npm install && npx prisma generate",
     "install-all": "npm install && cd backend && npm install",
     "lint": "eslint .",
     "preview": "vite preview"
